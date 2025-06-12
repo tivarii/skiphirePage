@@ -1,10 +1,9 @@
-
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowRight, Check, Info, AlertTriangle, CheckCircle, Clock, X } from "lucide-react"
-import { Card, CardContent } from "./Card"
-import { EnhancedButton } from "./EnhancedButton"
+import { Info, ArrowRight, CheckCircle, AlertTriangle, Truck, Calendar, Package, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { Skip } from "@/types/skip"
+import { Button } from "./button"
 
 interface SkipCardProps {
   skip: Skip
@@ -15,10 +14,10 @@ interface SkipCardProps {
 
 export function SkipCard({ skip, isSelected, onSelect, className = "" }: SkipCardProps) {
   const [showPriceBreakdown, setShowPriceBreakdown] = useState(false)
-  const [isHovered, setIsHovered] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const totalPrice = Math.round(skip.price_before_vat * (1 + skip.vat / 100))
-  const vatAmount = totalPrice - skip.price_before_vat
+  const vatAmount = Math.round((skip.price_before_vat * skip.vat) / 100)
   const hasAdditionalCosts = skip.transport_cost || skip.per_tonne_cost
 
   const getSkipImage = (size: number) => {
@@ -28,221 +27,233 @@ export function SkipCard({ skip, isSelected, onSelect, className = "" }: SkipCar
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      whileHover={{ y: -8 }}
-      transition={{ duration: 0.3 }}
-      className={className}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.4, type: "spring", damping: 20 }}
+      className={cn(
+        "relative overflow-hidden rounded-xl shadow-md transition-all w-full h-full",
+        isSelected ? "ring-2 ring-primary" : "hover:shadow-lg",
+        className
+      )}
     >
-      <Card
-        className={`
-          group cursor-pointer transition-all duration-300 overflow-hidden
-          ${
-            isSelected
-              ? "ring-2 ring-blue-500 dark:ring-blue-400 shadow-2xl bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-600"
-              : "hover:shadow-xl border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-          }
-        `}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => onSelect(skip.id)}
+      <div 
+        className={cn(
+          "relative transition-all duration-300 h-full flex flex-col",
+          isSelected ? "bg-gradient-to-br from-slate-50 to-primary/5 dark:from-slate-900 dark:to-primary/10" : 
+              "bg-white dark:bg-slate-900"
+        )}
+        onClick={() => setIsExpanded(!isExpanded)}
       >
-        <CardContent className="p-0">
-          {/* Image Section with Overlay */}
-          <div className="relative overflow-hidden">
-            <motion.img
+        {/* Top bar with size and selection indicator */}
+        <div className={cn(
+          "flex items-center justify-between py-2 px-3 bg-gradient-to-r",
+          isSelected ? 
+            "from-primary/90 to-primary-dark/90 text-white" : 
+            "from-slate-800/90 to-slate-900/90 text-slate-100 dark:from-slate-800 dark:to-slate-900"
+        )}>
+          <div className="flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5" />
+            <span className="font-medium text-sm">{skip.size} Yard Skip</span>
+          </div
+          >
+          
+          <AnimatePresence>
+            {isSelected && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="flex items-center gap-1 text-xs font-medium bg-white/20 px-2 py-0.5 rounded-full"
+              >
+                <CheckCircle className="w-3 h-3" />
+                <span>Selected</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Main content with adaptive layout */}
+        <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
+          {/* Image section - responsive and consistent */}
+          <div className="relative w-full sm:w-2/5 overflow-hidden h-48 sm:h-auto">
+            <img
               src={getSkipImage(skip.size)}
               alt={`${skip.size} Yard Skip`}
-              className="w-full h-48 object-cover"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.3 }}
+              className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
             />
-
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-            {/* Size Badge */}
-            <motion.div
-              className="absolute top-4 right-4"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-lg backdrop-blur-sm">
-                {skip.size} Yards
-              </div>
-            </motion.div>
-
-            {/* Selection Indicator */}
+            
+            {/* Skip features overlays */}
+            <div className="absolute bottom-0 inset-x-0 p-2 flex flex-wrap gap-1.5 bg-gradient-to-t from-black/70 to-transparent">
+              {!skip.allowed_on_road && (
+                <div className="bg-red-500/80 backdrop-blur-sm text-white px-1.5 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>No Road</span>
+                </div>
+              )}
+              {skip.allows_heavy_waste && (
+                <div className="bg-emerald-500/80 backdrop-blur-sm text-white px-1.5 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Heavy Waste</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Deselect button */}
             <AnimatePresence>
               {isSelected && (
-                <motion.div
-                  className="absolute top-4 left-4"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  exit={{ scale: 0, rotate: 180 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <div className="w-10 h-10 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                    <Check className="w-6 h-6 text-white" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Deselect Button */}
-            <AnimatePresence>
-              {isSelected && isHovered && (
                 <motion.button
-                  className="absolute top-4 left-16 w-8 h-8 bg-red-500 dark:bg-red-600 rounded-full flex items-center justify-center shadow-lg"
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
+                  initial={{ opacity: 0, scale: 0.5, top: 8, right: 8 }}
+                  animate={{ opacity: 1, scale: 1, top: 8, right: 8 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  className="absolute z-10 p-1 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-red-500 hover:bg-red-100 shadow"
                   onClick={(e) => {
                     e.stopPropagation()
                     onSelect(skip.id)
                   }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
                 >
-                  <X className="w-4 h-4 text-white" />
+                  <X className="w-3.5 h-3.5" />
                 </motion.button>
               )}
             </AnimatePresence>
-
-            {/* Status Badges */}
-            <div className="absolute bottom-4 left-4 space-y-2">
-              <AnimatePresence>
-                {!skip.allowed_on_road && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-red-500/90 dark:bg-red-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-lg"
-                  >
-                    <AlertTriangle className="w-3 h-3" />
-                    No Road Placement
-                  </motion.div>
-                )}
-                {skip.allows_heavy_waste && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-emerald-500/90 dark:bg-emerald-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-lg"
-                  >
-                    <CheckCircle className="w-3 h-3" />
-                    Heavy Waste OK
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
 
-          {/* Content Section */}
-          <div className="p-6">
-            {/* Header with Price */}
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{skip.size} Yard Skip</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>{skip.hire_period_days} day hire period</span>
+          {/* Content section - better spacing and responsiveness */}
+          <div className="p-3 sm:p-4 flex flex-col justify-between flex-1 overflow-hidden">
+            {/* Skip info */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 truncate">
+                {skip.size} Cubic Yard Skip
+              </h3>
+
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                  <span>{skip.hire_period_days} Day Hire Period</span>
                 </div>
+                
+                {hasAdditionalCosts && (
+                  <div className="flex items-start text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    <Truck className="w-3.5 h-3.5 mr-1.5 mt-0.5 text-amber-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-amber-600 dark:text-amber-400 truncate">Additional fees:</p>
+                      <ul className="text-xs space-y-0.5 mt-0.5">
+                        {skip.transport_cost && (
+                          <li>Transport: £{skip.transport_cost}</li>
+                        )}
+                        {skip.per_tonne_cost && (
+                          <li>Per tonne: £{skip.per_tonne_cost}</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Price Display */}
-              <div className="flex items-start gap-2">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">£{totalPrice}</div>
-                  <AnimatePresence>
-                    {showPriceBreakdown ? (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-gray-500 dark:text-gray-400 space-y-1 mt-1"
-                      >
-                        <div>Excl. VAT: £{skip.price_before_vat}</div>
-                        <div>
-                          VAT ({skip.vat}%): £{vatAmount}
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-xs text-gray-500 dark:text-gray-400"
-                      >
-                        inc. VAT
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+            {/* Price and action section */}
+            <div className="mt-3">
+              <div className="flex items-end justify-between flex-wrap gap-2">
+                <div>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                    £{totalPrice}
+                  </div>
+                  
+                  <div className="flex items-center mt-0.5">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {showPriceBreakdown ? (
+                        <span>VAT (£{vatAmount}) included</span>
+                      ) : (
+                        <span>inc. VAT</span>
+                      )}
+                    </span>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowPriceBreakdown(!showPriceBreakdown)
+                      }}
+                      className="ml-1 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Info className="w-3 h-3 text-slate-400" />
+                    </button>
+                  </div>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                <Button
+                  variant={isSelected ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "rounded-full font-medium transition-all text-xs py-1 h-auto",
+                    isSelected ? "bg-primary text-white" : "border-primary text-primary hover:bg-primary hover:text-white"
+                  )}
                   onClick={(e) => {
                     e.stopPropagation()
-                    setShowPriceBreakdown(!showPriceBreakdown)
+                    onSelect(skip.id)
                   }}
-                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                 >
-                  <Info className="w-4 h-4 text-gray-400 dark:text-gray-400" />
-                </motion.button>
+                  {isSelected ? (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="whitespace-nowrap">Selected</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <span className="whitespace-nowrap">Select</span>
+                      <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" />
+                    </span>
+                  )}
+                </Button>
               </div>
             </div>
-
-            {/* Additional Costs Warning */}
-            <AnimatePresence>
-              {hasAdditionalCosts && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg"
-                >
-                  <p className="text-xs text-orange-800 dark:text-orange-300 font-medium mb-1">
-                    Additional costs may apply:
-                  </p>
-                  <div className="space-y-1">
-                    {skip.transport_cost && (
-                      <p className="text-xs text-orange-700 dark:text-orange-400">Transport: £{skip.transport_cost}</p>
-                    )}
-                    {skip.per_tonne_cost && (
-                      <p className="text-xs text-orange-700 dark:text-orange-400">Per tonne: £{skip.per_tonne_cost}</p>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Action Button */}
-            <EnhancedButton
-              variant={isSelected ? "success" : "primary"}
-              size="lg"
-              className="w-full"
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelect(skip.id)
-              }}
-            >
-              {isSelected ? (
-                <>
-                  <Check className="w-5 h-5 mr-2" />
-                  Selected - Click to Deselect
-                </>
-              ) : (
-                <>
-                  Select This Skip
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </>
-              )}
-            </EnhancedButton>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Expandable details section */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="px-4 pb-4 overflow-hidden"
+            >
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                <h4 className="font-medium text-sm text-slate-900 dark:text-white mb-2">Skip Details</h4>
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li className="flex items-center">
+                    <span className="w-24 flex-shrink-0">Dimensions:</span>
+                    <span className="font-medium">Approx. {skip.size * 0.3}m³</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-24 flex-shrink-0">Road Placement:</span>
+                    <span className={cn(
+                      "font-medium",
+                      skip.allowed_on_road ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                    )}>
+                      {skip.allowed_on_road ? "Allowed" : "Not Allowed"}
+                    </span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-24 flex-shrink-0">Heavy Waste:</span>
+                    <span className={cn(
+                      "font-medium",
+                      skip.allows_heavy_waste ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-400"
+                    )}>
+                      {skip.allows_heavy_waste ? "Allowed" : "Standard Waste Only"}
+                    </span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="w-24 flex-shrink-0">Hire Period:</span>
+                    <span className="font-medium">{skip.hire_period_days} Days</span>
+                  </li>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   )
 }
